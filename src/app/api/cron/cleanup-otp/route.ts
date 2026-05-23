@@ -3,13 +3,27 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServiceSupabase } from "@/lib/supabase/server";
 
 /**
- * Vercel-cron entry point that wipes `otp_codes` rows older than one
- * hour past their expiry. Scheduled in `vercel.json` to run every 30
- * minutes.
+ * Cleanup entry point that wipes `otp_codes` rows older than one hour
+ * past their expiry. Designed to be called by an **external scheduler**
+ * (GitHub Actions cron, Cloudflare Workers / Cron Triggers, Upstash
+ * QStash, etc.) — we no longer ship a `crons` block in `vercel.json`
+ * because Vercel's Hobby tier caps cron frequency at once per day,
+ * which isn't enough to keep the OTP table tidy.
  *
- * Auth: requires the `CRON_SECRET` env var as a bearer token. Vercel's
- * cron invocations are signed with this header so an attacker can't
- * trigger the cleanup by hitting the endpoint directly.
+ * Auth: requires the `CRON_SECRET` env var, sent as
+ * `Authorization: Bearer <CRON_SECRET>`. Without that header the
+ * endpoint returns 401, so an attacker who finds the URL can't trigger
+ * the cleanup by hitting it directly.
+ *
+ * Example GitHub Actions invocation:
+ *
+ *   curl -fsSL -X GET \
+ *     -H "Authorization: Bearer $CRON_SECRET" \
+ *     "$APP_BASE_URL/api/cron/cleanup-otp"
+ *
+ * Even if the cron stops running entirely, expired OTPs are still
+ * rejected at verify-time — this job is only about keeping the table
+ * small.
  */
 
 export const runtime = "nodejs";
