@@ -4,8 +4,10 @@ import { createServiceSupabase } from "@/lib/supabase/server";
 
 /**
  * Vercel-cron entry point that wipes `otp_codes` rows older than one
- * hour past their expiry. Scheduled in `vercel.json` to run every 30
- * minutes.
+ * hour past their expiry. Scheduled in `vercel.json` to run daily at
+ * 03:00 UTC — the Hobby plan caps cron frequency at once per day; once
+ * the account is on Pro this can drop to `*/30 * * * *` without any
+ * code change.
  *
  * Auth: requires the `CRON_SECRET` env var as a bearer token. Vercel's
  * cron invocations are signed with this header so an attacker can't

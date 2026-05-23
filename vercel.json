@@ -6,7 +6,7 @@
   "crons": [
     {
       "path": "/api/cron/cleanup-otp",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }
