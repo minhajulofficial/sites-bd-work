@@ -82,6 +82,26 @@ The parent-domain list is config-only — no code changes required. Four steps:
 | `/api/health`                   | Liveness + enabled-TLD list        | PR-01    |
 | `/api/dns/[tldId]`              | Per-TLD Cloudflare DNS API         | PR-03    |
 
+## Cloudflare multi-zone setup
+
+Each TLD lives in its own Cloudflare zone with its own API token; the
+service layer is in [`src/lib/cloudflare/client.ts`](src/lib/cloudflare/client.ts)
+and the per-TLD HTTP routes are mounted under
+`src/app/api/dns/[tldId]/`. To wire up (or rotate, or remove) a zone,
+follow the operator runbook in
+[`docs/cloudflare-setup.md`](docs/cloudflare-setup.md).
+
+To verify that every enabled TLD's token + zone id are working:
+
+```bash
+npm run cf:verify
+```
+
+The script iterates every TLD in `src/config/domains.json` whose
+`enabled` flag is `true`, hits Cloudflare for the zone metadata + first
+5 DNS records, and exits non-zero on the first failure. Run it after
+adding a new TLD or rotating a token.
+
 ## Database setup
 
 The Supabase schema lives under [`supabase/`](supabase/):
