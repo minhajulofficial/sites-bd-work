@@ -4,8 +4,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Server-side Supabase client. Real session refresh + middleware wiring
- * lands in PR-04. Centralising the factory now means future server actions,
- * route handlers, and RSC pages all import from a single, typed entry point.
+ * lands in PR-04. Centralising the factory now means future server
+ * actions, route handlers, and RSC pages all import from a single
+ * entry point. Typed against the project schema once the @supabase/ssr
+ * generic signature stabilises — for now callers narrow at the call
+ * site via @/types/supabase.
  */
 export function createServerSupabase(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
