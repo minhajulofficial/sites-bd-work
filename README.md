@@ -82,6 +82,62 @@ The parent-domain list is config-only — no code changes required. Four steps:
 | `/api/health`                   | Liveness + enabled-TLD list        | PR-01    |
 | `/api/dns/[tldId]`              | Per-TLD Cloudflare DNS API         | PR-03    |
 
+## Database setup
+
+The Supabase schema lives under [`supabase/`](supabase/):
+
+- [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) —
+  one self-contained migration that creates all 14 tables, every status
+  ENUM, the trigger functions (`set_updated_at`, `generate_customer_id`,
+  `is_admin`, plus per-table triggers), and enables RLS with explicit
+  policies on every table.
+- [`supabase/seed.sql`](supabase/seed.sql) — idempotent seed that inserts
+  the three TLDs from
+  [`src/config/domains.json`](src/config/domains.json), one bootstrap
+  admin user (`admin@sites.bd`, hardcoded UUID
+  `00000000-0000-0000-0000-000000000001`), and three placeholder banners.
+
+### Run locally against your Supabase project
+
+The recommended path is the official Supabase CLI:
+
+```bash
+# one-time
+npm i -g supabase
+
+supabase link --project-ref <your-project-ref>
+supabase db push                                    # applies 0001_init.sql
+psql "$SUPABASE_DB_URL" -f supabase/seed.sql        # inserts TLDs/admin/banners
+```
+
+Or apply directly via the Supabase dashboard's SQL editor: paste
+`supabase/migrations/0001_init.sql` first, then `supabase/seed.sql`.
+
+After the seed runs, set the bootstrap admin password manually via
+**Supabase Dashboard → Authentication → Users → `admin@sites.bd` → Send
+password reset**.
+
+### Regenerating TypeScript types
+
+The repo ships hand-written types at
+[`src/types/supabase.ts`](src/types/supabase.ts) that match
+`0001_init.sql` exactly. To regenerate from a live Supabase project (the
+output should be byte-identical to the committed file modulo whitespace):
+
+```bash
+npx supabase gen types typescript --schema public > src/types/supabase.ts
+```
+
+Use the named exports `Database`, `Tables<…>`, `TablesInsert<…>`,
+`TablesUpdate<…>`, and `Enums<…>` from this file in app code:
+
+```ts
+import type { Tables, Enums } from "@/types/supabase";
+
+type Domain = Tables<"domains">;
+type Status = Enums<"domain_operational_status">;
+```
+
 ## Multi-domain registry
 
 All DNS, search, admin, and email code paths **must** read parent-domain
