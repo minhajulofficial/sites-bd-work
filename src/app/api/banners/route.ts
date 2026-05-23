@@ -6,6 +6,7 @@ import {
   UnauthorizedError,
   requireUser,
 } from "@/lib/auth/session";
+import { resolveBannerImageUrl } from "@/lib/admin/banners";
 import { getActiveBanners } from "@/lib/dashboard/banners";
 import { createServerSupabase } from "@/lib/supabase/server";
 import authContent from "@/content/contentConstants.json";
@@ -47,5 +48,11 @@ export async function GET(): Promise<NextResponse> {
 
   const supabase = createServerSupabase();
   const banners = await getActiveBanners(supabase);
-  return okJson(banners);
+  const resolved = await Promise.all(
+    banners.map(async (banner) => ({
+      ...banner,
+      image_url: await resolveBannerImageUrl(supabase, banner.image_url),
+    })),
+  );
+  return okJson(resolved);
 }
