@@ -52,7 +52,60 @@
         "privacyPolicy": "Privacy",
         "status": "Status"
       }
-    }
+    },
+    "welcomeBanner": {
+      "title": "Welcome to SITES.BD",
+      "subtitle": "Claim a free subdomain on sites.bd, esite.top, or esite.in and point it anywhere you like — all from one dashboard."
+    },
+    "connectionGuide": {
+      "title": "Connect your domain",
+      "intro": "Already own a domain elsewhere? Point it at SITES.BD in a couple of steps.",
+      "steps": [
+        {
+          "title": "Search & claim",
+          "body": "Use the domain search to register a free SITES.BD subdomain, or skip to step 2 with one you already own."
+        },
+        {
+          "title": "Choose how to connect",
+          "body": "Switch your domain to our system nameservers, or keep your current DNS provider and add a CNAME / A record."
+        },
+        {
+          "title": "Verify",
+          "body": "We watch for the DNS change and mark the domain Verified automatically — usually within minutes."
+        }
+      ],
+      "tip": "Most setups finish in under 10 minutes. SSL is provisioned automatically once verification completes.",
+      "cta": {
+        "label": "Open the domain checker",
+        "href": "/check"
+      }
+    },
+    "faq": [
+      {
+        "q": "Is the subdomain really free?",
+        "a": "Yes — SITES.BD subdomains under sites.bd, esite.top, and esite.in are free for personal and small-business use. There are no hidden renewal fees."
+      },
+      {
+        "q": "How long does DNS verification take?",
+        "a": "Once you update your DNS, we re-check every few minutes. Most domains verify within 5–10 minutes, but propagation can occasionally take up to an hour."
+      },
+      {
+        "q": "Can I use my own nameservers?",
+        "a": "Yes. Pick \"Manual DNS\" when you claim the domain and add the CNAME or A records we generate. You stay in control of your DNS provider."
+      },
+      {
+        "q": "Do you offer SSL certificates?",
+        "a": "Free SSL is provisioned automatically through Cloudflare as soon as your domain is verified. There is nothing to install or renew."
+      },
+      {
+        "q": "How do hosting orders get fulfilled?",
+        "a": "After checkout you'll see your invoice and order under Invoices and Services. We provision hosting manually within a few hours and post credentials to the ticket attached to the order."
+      },
+      {
+        "q": "Who do I contact if something breaks?",
+        "a": "Open a support ticket from the Tickets page or message us on WhatsApp from any service detail screen. We answer the same day, every day."
+      }
+    ]
   },
   "notifications": { "success": {}, "error": {} },
   "terms": { "domainUsagePolicy": "", "termsAndConditions": "" },
