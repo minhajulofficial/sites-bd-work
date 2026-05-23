@@ -73,6 +73,44 @@ export function rateLimit(key: string, opts: RateLimitOptions): RateLimitResult 
   };
 }
 
+/**
+ * Read-only check: does `key` currently have capacity within
+ * `windowMs`? Does **not** record a hit. Use in flows where you only
+ * want to count *failed* attempts (e.g. login): peek first to short
+ * circuit, do the work, then `recordRateLimit` on failure.
+ */
+export function peekRateLimit(
+  key: string,
+  opts: RateLimitOptions,
+): RateLimitResult {
+  const now = Date.now();
+  const bucket = buckets.get(key);
+  const fresh = (bucket?.hits ?? []).filter((t) => t > now - opts.windowMs);
+  if (fresh.length >= opts.max) {
+    return {
+      allowed: false,
+      remaining: 0,
+      retryAt: fresh[0] + opts.windowMs,
+    };
+  }
+  return { allowed: true, remaining: opts.max - fresh.length };
+}
+
+/** Record a single hit for `key` without an up-front capacity check. */
+export function recordRateLimit(key: string, opts: RateLimitOptions): void {
+  const now = Date.now();
+  const bucket = buckets.get(key) ?? { hits: [] };
+  const fresh = bucket.hits.filter((t) => t > now - opts.windowMs);
+  fresh.push(now);
+  bucket.hits = fresh;
+  buckets.set(key, bucket);
+}
+
+/** Drop every recorded hit for `key`. */
+export function clearRateLimit(key: string): void {
+  buckets.delete(key);
+}
+
 let lastSweep = 0;
 function maybeSweep(now: number): void {
   // Sweep at most once per minute, and only when the map is non-trivial.

@@ -53,6 +53,22 @@ export class ForbiddenError extends Error {
 }
 
 /**
+ * Thrown by `requireUser()` when the resolved profile is `suspended`.
+ * Route handlers should translate this into a 403 with code
+ * `account_suspended`; the client uses that signal to drop the user
+ * back at `/login?error=suspended`.
+ */
+export class AccountSuspendedError extends Error {
+  public readonly status = 403;
+  public readonly code = "account_suspended";
+  public readonly redirectTo = "/login?error=suspended";
+  constructor(message = "Your account has been suspended") {
+    super(message);
+    this.name = "AccountSuspendedError";
+  }
+}
+
+/**
  * Returns `{ user, profile }` if a valid session cookie is present and a
  * matching `profiles` row exists, otherwise `null`. Never throws.
  */
@@ -75,10 +91,20 @@ export async function getCurrentUser(): Promise<AuthContext | null> {
   return { user, profile };
 }
 
-/** Returns `{ user, profile }`. Throws `UnauthorizedError` if no session. */
+/**
+ * Returns `{ user, profile }`. Throws `UnauthorizedError` if no
+ * session, or `AccountSuspendedError` if the profile is suspended.
+ *
+ * The suspended-check here is the canonical force-logout point — any
+ * API route that goes through `requireUser()` will reject a suspended
+ * caller, which the middleware can't do for `/api/*` paths (the
+ * middleware lets API routes through so they can return JSON instead
+ * of a redirect).
+ */
 export async function requireUser(): Promise<AuthContext> {
   const ctx = await getCurrentUser();
   if (!ctx) throw new UnauthorizedError();
+  if (ctx.profile.status === "suspended") throw new AccountSuspendedError();
   return ctx;
 }
 
