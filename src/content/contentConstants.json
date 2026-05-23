@@ -25,6 +25,35 @@
       "immutableField": "This field cannot be changed. Please contact support to update it."
     }
   },
+  "dashboard": {
+    "brandName": "SITES.BD",
+    "header": {
+      "openMenu": "Open navigation menu",
+      "closeMenu": "Close navigation menu",
+      "notifications": "Notifications",
+      "cart": "Cart"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "myDomains": "My Domains",
+      "searchDomain": "Search Domain",
+      "services": "Services",
+      "cart": "Cart",
+      "invoices": "Invoices",
+      "tickets": "Tickets",
+      "profile": "Profile",
+      "sectionLabel": "Primary"
+    },
+    "footer": {
+      "copyrightTemplate": "© {{year}} SITES.BD. All rights reserved.",
+      "links": {
+        "support": "Support",
+        "termsOfService": "Terms",
+        "privacyPolicy": "Privacy",
+        "status": "Status"
+      }
+    }
+  },
   "notifications": { "success": {}, "error": {} },
   "terms": { "domainUsagePolicy": "", "termsAndConditions": "" },
   "support": { "whatsappTemplate": "" },
