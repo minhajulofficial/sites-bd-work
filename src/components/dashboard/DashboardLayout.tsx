@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+
+import { resumePendingClaim } from "@/lib/cart/claimResume";
 
 import { Footer } from "./Footer";
 import { Header } from "./Header";
@@ -23,9 +26,32 @@ import { Sidebar } from "./Sidebar";
  *     directions without remounting.
  *   - `min-h-screen flex flex-col` on the wrapper keeps the footer
  *     pinned to the bottom on short pages without sticky positioning.
+ *
+ * On mount, the layout also drains any pending guest claim left in
+ * `sessionStorage` (PR-13). If a valid claim is present we re-verify
+ * availability via `/api/domain/check`, add the item to the cart, and
+ * push the user to `/cart`. Idempotent across mounts — once consumed
+ * the envelope is cleared.
  */
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const outcome = await resumePendingClaim();
+      if (cancelled) return;
+      if (outcome.kind === "added") {
+        router.push("/cart");
+      }
+    })().catch((err) => {
+      console.error("[claim-resume] unexpected failure", err);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">

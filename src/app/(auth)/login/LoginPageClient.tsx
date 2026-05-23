@@ -33,11 +33,30 @@ function bannerForQuery(code: string | null): string | null {
   return null;
 }
 
+/**
+ * Normalises the `?next=` query param into a safe internal path, or
+ * `null` if it's missing / unsafe. Used by PR-13's guest-claim flow
+ * to bounce the user to `/cart` after sign-in. Anything that is not a
+ * single-leading-slash path (i.e. anything that could escape to an
+ * external origin or to a protocol-relative URL) is rejected.
+ */
+function safeNextPath(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return null;
+  // Disallow trying to jump back into the auth wizard or admin routes
+  // by way of `?next=` — keeps the post-login destination on the
+  // user-facing app surface.
+  if (raw.startsWith("/login") || raw.startsWith("/register")) return null;
+  if (raw.startsWith("/admin")) return null;
+  return raw;
+}
+
 export function LoginPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialBanner = bannerForQuery(searchParams.get("error"));
   const [pageError, setPageError] = useState<string | null>(initialBanner);
+  const nextPath = safeNextPath(searchParams.get("next"));
 
   useEffect(() => {
     setPageError(bannerForQuery(searchParams.get("error")));
@@ -93,7 +112,13 @@ export function LoginPageClient() {
               return;
             }
             const data = (await res.json()) as { ok: true; redirect: string };
-            router.replace(data.redirect ?? "/dash");
+            // Honour `?next=` (validated above) only when the server
+            // says the user is fully verified — a half-onboarded user
+            // still has to finish `/complete-profile` first.
+            const serverRedirect = data.redirect ?? "/dash";
+            const target =
+              nextPath && serverRedirect === "/dash" ? nextPath : serverRedirect;
+            router.replace(target);
           } catch (e) {
             console.error("[login] sign-in request failed", e);
             setPageError("Network error. Please try again.");

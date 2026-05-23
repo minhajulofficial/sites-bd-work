@@ -28,14 +28,30 @@ import {
   parseQueryString,
   type SearchResult,
 } from "@/lib/domain/shared";
+import { savePendingClaim } from "@/lib/cart/claimResume";
+import { useCart } from "@/lib/hooks/useCart";
 
 const WhoisModal = dynamic(
   () => import("@/components/domain/WhoisModal").then((m) => m.WhoisModal),
   { ssr: false },
 );
 
+const TermsAndConditionsModal = dynamic(
+  () =>
+    import("@/components/domain/TermsAndConditionsModal").then(
+      (m) => m.TermsAndConditionsModal,
+    ),
+  { ssr: false },
+);
+
 type DomainCheckProps = {
   tlds: TldEntry[];
+  /**
+   * Whether the visitor is signed in. Drives the state-aware claim
+   * button: logged-in → T&C modal → cart; guest → sessionStorage
+   * + `/login?next=/cart`.
+   */
+  isLoggedIn?: boolean;
 };
 
 /**
@@ -52,8 +68,9 @@ type DomainCheckProps = {
  * A "See full search" link routes the visitor to `/check?q=…` for the
  * fully featured multi-name + multi-TLD experience.
  */
-export function DomainCheck({ tlds }: DomainCheckProps) {
+export function DomainCheck({ tlds, isLoggedIn = false }: DomainCheckProps) {
   const router = useRouter();
+  const { addItem } = useCart();
   const defaultTld = useMemo(
     () => tlds.find((t) => t.isPrimary) ?? tlds[0],
     [tlds],
@@ -65,6 +82,7 @@ export function DomainCheck({ tlds }: DomainCheckProps) {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [whoisTarget, setWhoisTarget] = useState<SearchResult | null>(null);
+  const [pendingClaim, setPendingClaim] = useState<SearchResult | null>(null);
   const [retrying, setRetrying] = useState<Set<string>>(() => new Set());
 
   const abortRef = useRef<AbortController | null>(null);
@@ -160,6 +178,8 @@ export function DomainCheck({ tlds }: DomainCheckProps) {
 
   const handleClaim = useCallback(
     (row: SearchResult) => {
+      if (typeof window === "undefined") return;
+
       window.dispatchEvent(
         new CustomEvent("domain-claim", {
           detail: {
@@ -169,10 +189,32 @@ export function DomainCheck({ tlds }: DomainCheckProps) {
           },
         }),
       );
-      console.info("[domain-claim]", row.fullDomain);
+
+      if (isLoggedIn) {
+        setPendingClaim(row);
+        return;
+      }
+
+      savePendingClaim({
+        tldId: row.tldId,
+        name: row.name,
+        fullDomain: row.fullDomain,
+      });
+      router.push(`/login?next=${encodeURIComponent("/cart")}`);
     },
-    [],
+    [isLoggedIn, router],
   );
+
+  const handleAcceptTerms = useCallback(() => {
+    if (!pendingClaim) return;
+    addItem({
+      tldId: pendingClaim.tldId,
+      name: pendingClaim.name,
+      fullDomain: pendingClaim.fullDomain,
+    });
+    setPendingClaim(null);
+    router.push("/cart");
+  }, [addItem, pendingClaim, router]);
 
   const goToCheckPage = useCallback(() => {
     const trimmed = name.trim();
@@ -294,6 +336,13 @@ export function DomainCheck({ tlds }: DomainCheckProps) {
         open={whoisTarget !== null}
         result={whoisTarget}
         onClose={() => setWhoisTarget(null)}
+      />
+
+      <TermsAndConditionsModal
+        open={pendingClaim !== null}
+        fullDomain={pendingClaim?.fullDomain ?? null}
+        onAccept={handleAcceptTerms}
+        onClose={() => setPendingClaim(null)}
       />
     </section>
   );

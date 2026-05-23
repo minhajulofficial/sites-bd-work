@@ -7,6 +7,7 @@ import { faGlobe } from "@fortawesome/free-solid-svg-icons";
 import { Navbar } from "@/components/home/Navbar";
 import { Footer } from "@/components/home/Footer";
 import { DomainSearchPanel } from "@/components/domain/DomainSearchPanel";
+import { getCurrentUser } from "@/lib/auth/session";
 import { getEnabledTlds } from "@/lib/domains/registry";
 
 export const metadata: Metadata = {
@@ -16,6 +17,11 @@ export const metadata: Metadata = {
   alternates: { canonical: "/check" },
 };
 
+// Reading the auth cookie via `getCurrentUser()` makes this page
+// per-request; static rendering would cache the wrong claim-button
+// branch (logged-in vs guest) for the next visitor.
+export const dynamic = "force-dynamic";
+
 /**
  * `/check` — dedicated multi-TLD domain availability page.
  *
@@ -24,8 +30,10 @@ export const metadata: Metadata = {
  * inside `DomainSearchPanel`. `useSearchParams` inside the panel
  * requires a `<Suspense>` boundary in the App Router; provide one here.
  */
-export default function CheckPage() {
+export default async function CheckPage() {
   const tlds = getEnabledTlds();
+  const session = await getCurrentUser();
+  const isLoggedIn = Boolean(session);
 
   return (
     <>
@@ -60,7 +68,8 @@ export default function CheckPage() {
                 tlds={tlds}
                 syncUrl
                 autoRun
-                claimRedirect="/dash"
+                isLoggedIn={isLoggedIn}
+                claimRedirect="/cart"
               />
             </Suspense>
           </div>
