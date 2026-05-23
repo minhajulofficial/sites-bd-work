@@ -83,6 +83,29 @@ export const setPasswordBodySchema = z
     message: "Passwords do not match",
   });
 
+// Forgot-password flow. Shapes mirror the registration variants but
+// the inter-step token is signed by a different secret (`passwordReset
+// Token`) and has a shorter TTL (15 min).
+export const forgotPasswordSendOtpBodySchema = z.object({
+  email: emailSchema,
+});
+
+export const forgotPasswordVerifyOtpBodySchema = z.object({
+  email: emailSchema,
+  code: otpCodeSchema,
+});
+
+export const forgotPasswordResetBodySchema = z
+  .object({
+    token: z.string().min(1, "Token is required"),
+    password: passwordSchema,
+    confirmPassword: z.string().min(1, "Confirm your password"),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match",
+  });
+
 export const completeProfileBodySchema = z.object({
   full_name: fullNameSchema,
   mobile: mobileSchema,
@@ -118,6 +141,15 @@ export const updateProfileBodySchema = z
 export type SendOtpBody = z.infer<typeof sendOtpBodySchema>;
 export type VerifyOtpBody = z.infer<typeof verifyOtpBodySchema>;
 export type SetPasswordBody = z.infer<typeof setPasswordBodySchema>;
+export type ForgotPasswordSendOtpBody = z.infer<
+  typeof forgotPasswordSendOtpBodySchema
+>;
+export type ForgotPasswordVerifyOtpBody = z.infer<
+  typeof forgotPasswordVerifyOtpBodySchema
+>;
+export type ForgotPasswordResetBody = z.infer<
+  typeof forgotPasswordResetBodySchema
+>;
 export type CompleteProfileBody = z.infer<typeof completeProfileBodySchema>;
 export type LoginBody = z.infer<typeof loginBodySchema>;
 export type UpdateProfileBody = z.infer<typeof updateProfileBodySchema>;
