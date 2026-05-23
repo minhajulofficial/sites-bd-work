@@ -14,7 +14,20 @@ import {
  * middleware already enforces the admin gate, but re-checking inside
  * the layout means an attacker who somehow bypasses the edge guard
  * still can't render an admin page server-side.
+ *
+ * Marked `force-dynamic` so the admin pages never run through static
+ * prerender at build time. `requireAdmin()` resolves the current user
+ * from the request cookie via `createServerSupabase()`, which throws
+ * `[supabase/server] NEXT_PUBLIC_SUPABASE_URL ... required` when no
+ * request context is available — i.e. during `next build`. Opting
+ * the whole admin group out of static rendering means every admin
+ * page (including the PR-22 / PR-24 / PR-25 placeholders) is rendered
+ * on demand, and the Vercel build stops failing on the prerender step
+ * even when the project doesn't have the public Supabase keys wired
+ * in. The auth guard itself is unchanged.
  */
+export const dynamic = "force-dynamic";
+
 export default async function AdminGroupLayout({
   children,
 }: {
