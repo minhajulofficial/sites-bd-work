@@ -1,0 +1,39 @@
+{
+  "premium": [
+    {
+      "id": "wp",
+      "name": "WordPress Hosting",
+      "yearlyBDT": 1000,
+      "provider": "Hostinger",
+      "specs": ""
+    },
+    {
+      "id": "cpanel",
+      "name": "cPanel Hosting",
+      "yearlyBDT": 800,
+      "provider": "",
+      "specs": ""
+    },
+    {
+      "id": "third",
+      "name": "Third Hosting",
+      "yearlyBDT": 0,
+      "provider": "",
+      "specs": ""
+    }
+  ],
+  "free": [
+    { "id": "vercel", "name": "Vercel" },
+    { "id": "github-pages", "name": "GitHub Pages" },
+    { "id": "blogger", "name": "Blogger" },
+    { "id": "google-sites", "name": "Google Sites" },
+    { "id": "netlify", "name": "Netlify" },
+    { "id": "render", "name": "Render" },
+    { "id": "firebase", "name": "Firebase Hosting" },
+    { "id": "surge", "name": "Surge" }
+  ],
+  "custom": [
+    { "id": "ns", "name": "Connect via Name Server" },
+    { "id": "ip", "name": "Connect via IP" }
+  ]
+}

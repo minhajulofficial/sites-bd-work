@@ -1,0 +1,31 @@
+{
+  "domains": [
+    {
+      "id": "sites-bd",
+      "name": "sites.bd",
+      "enabled": true,
+      "envPrefix": "CF_SITES_BD",
+      "label": "sites.bd",
+      "order": 1,
+      "isPrimary": true
+    },
+    {
+      "id": "esite-top",
+      "name": "esite.top",
+      "enabled": true,
+      "envPrefix": "CF_ESITE_TOP",
+      "label": "esite.top",
+      "order": 2,
+      "isPrimary": false
+    },
+    {
+      "id": "esite-in",
+      "name": "esite.in",
+      "enabled": true,
+      "envPrefix": "CF_ESITE_IN",
+      "label": "esite.in",
+      "order": 3,
+      "isPrimary": false
+    }
+  ]
+}
