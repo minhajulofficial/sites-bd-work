@@ -89,7 +89,35 @@ export const completeProfileBodySchema = z.object({
   address: addressSchema,
 });
 
+/**
+ * Login. We deliberately do *not* re-use `passwordSchema` here — the
+ * sign-in path should accept whatever the user typed (even if it's
+ * weaker than today's policy) so legacy / reset accounts can still
+ * sign in.
+ */
+export const loginBodySchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, "Password is required").max(128),
+});
+
+/**
+ * Profile-edit payload. Only the two fields the PRD allows the user to
+ * change on their own. `email` / `mobile` / `customer_id` are
+ * deliberately omitted; the DB trigger from PR-02 enforces immutability
+ * even if a caller tries to PATCH them anyway.
+ */
+export const updateProfileBodySchema = z
+  .object({
+    full_name: fullNameSchema.optional(),
+    address: addressSchema.optional(),
+  })
+  .refine((d) => d.full_name !== undefined || d.address !== undefined, {
+    message: "Provide at least one field to update",
+  });
+
 export type SendOtpBody = z.infer<typeof sendOtpBodySchema>;
 export type VerifyOtpBody = z.infer<typeof verifyOtpBodySchema>;
 export type SetPasswordBody = z.infer<typeof setPasswordBodySchema>;
 export type CompleteProfileBody = z.infer<typeof completeProfileBodySchema>;
+export type LoginBody = z.infer<typeof loginBodySchema>;
+export type UpdateProfileBody = z.infer<typeof updateProfileBodySchema>;

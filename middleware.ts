@@ -50,6 +50,7 @@ const AUTH_GROUP_PATHS = new Set([
 const COMPLETE_PROFILE_PATH = "/complete-profile";
 const DEFAULT_USER_LANDING = "/dash";
 const DEFAULT_LOGIN_PATH = "/login";
+const SUSPENDED_LOGIN_PATH = "/login?error=suspended";
 
 function isUserGroupPath(pathname: string): boolean {
   return USER_GROUP_PREFIXES.some(
@@ -136,6 +137,9 @@ export async function middleware(request: NextRequest) {
   if (pathname === COMPLETE_PROFILE_PATH) {
     if (!user) return redirectTo(request, DEFAULT_LOGIN_PATH);
     const profile = await fetchProfile(supabase, user.id);
+    if (profile && profile.status === "suspended") {
+      return redirectTo(request, SUSPENDED_LOGIN_PATH);
+    }
     if (profile && profile.status === "profile_verified") {
       return redirectTo(request, DEFAULT_USER_LANDING);
     }
@@ -146,6 +150,9 @@ export async function middleware(request: NextRequest) {
   if (isAdminGroupPath(pathname)) {
     if (!user) return redirectTo(request, DEFAULT_LOGIN_PATH);
     const profile = await fetchProfile(supabase, user.id);
+    if (profile && profile.status === "suspended") {
+      return redirectTo(request, SUSPENDED_LOGIN_PATH);
+    }
     if (!profile || !profile.is_admin) {
       return redirectTo(request, DEFAULT_USER_LANDING);
     }
@@ -157,6 +164,9 @@ export async function middleware(request: NextRequest) {
     if (!user) return redirectTo(request, DEFAULT_LOGIN_PATH);
     const profile = await fetchProfile(supabase, user.id);
     if (!profile) return redirectTo(request, DEFAULT_LOGIN_PATH);
+    if (profile.status === "suspended") {
+      return redirectTo(request, SUSPENDED_LOGIN_PATH);
+    }
     if (profile.status !== "profile_verified") {
       return redirectTo(request, COMPLETE_PROFILE_PATH);
     }
@@ -184,10 +194,11 @@ async function fetchProfile(
   return data as MinimalProfile;
 }
 
-function redirectTo(request: NextRequest, pathname: string) {
+function redirectTo(request: NextRequest, target: string) {
   const url = request.nextUrl.clone();
+  const [pathname, search] = target.split("?", 2);
   url.pathname = pathname;
-  url.search = "";
+  url.search = search ? `?${search}` : "";
   return NextResponse.redirect(url);
 }
 

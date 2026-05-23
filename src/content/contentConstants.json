@@ -18,7 +18,11 @@
       "mobileTaken": "This mobile number is already registered.",
       "unauthenticated": "You must be signed in to continue.",
       "forbidden": "You do not have permission to view this page.",
-      "profileIncomplete": "Please complete your profile before continuing."
+      "profileIncomplete": "Please complete your profile before continuing.",
+      "invalidCredentials": "Incorrect email or password.",
+      "accountSuspended": "Your account has been suspended. Please contact support.",
+      "loginRateLimited": "Too many failed sign-in attempts. Please try again in a few minutes.",
+      "immutableField": "This field cannot be changed. Please contact support to update it."
     }
   },
   "notifications": { "success": {}, "error": {} },
