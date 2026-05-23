@@ -5,40 +5,24 @@ import { CloudflareError } from "@/lib/cloudflare/types";
 import { getCloudflareClient } from "@/lib/cloudflare/client";
 import { getEnabledTlds, type TldEntry } from "@/lib/domains/registry";
 import { createServiceSupabase } from "@/lib/supabase/server";
+import {
+  NAME_REGEX,
+  parseQueryString as sharedParseQueryString,
+  type SearchResult,
+  type SearchUnavailableReason,
+  type WhoisSummary,
+} from "./shared";
 
-/** Public response — one row per (name × TLD). */
-export interface SearchResult {
-  name: string;
-  tldId: string;
-  tldName: string;
-  fullDomain: string;
-  available: boolean;
-  reason?: SearchUnavailableReason;
-  error?: string;
-  status?: "unknown";
-  whois?: WhoisSummary;
-}
-
-export type SearchUnavailableReason =
-  | "reserved"
-  | "claimed_by_user"
-  | "claimed_in_dns";
-
-export interface WhoisSummary {
-  registrantName: string | null;
-  registrantEmail: string;
-  registrationDate: string;
-  expiryDate: string;
-}
+// Re-export the public types so existing consumers (`search.ts` was the
+// historical home) keep working unchanged.
+export type { SearchResult, SearchUnavailableReason, WhoisSummary };
+export { NAME_REGEX };
 
 const reservedSet = new Set<string>(
   (reservedConfig as { reserved: string[] }).reserved.map((s) =>
     s.toLowerCase(),
   ),
 );
-
-/** Allowed shape for a single name (lowercased before this is checked). */
-export const NAME_REGEX = /^[a-z0-9](?:[a-z0-9-]{0,28}[a-z0-9])?$/;
 
 /** Per-TLD timeout for Cloudflare lookups (matches the brief). */
 const TLD_TIMEOUT_MS = 3_000;
@@ -134,14 +118,10 @@ export class InvalidSearchInputError extends Error {
 
 /**
  * Splits a string on commas / whitespace / newlines and lower-cases
- * each token. Empty entries are dropped.
+ * each token. Empty entries are dropped. Re-exported from `./shared`
+ * so server callers don't have to import it from a different module.
  */
-export function parseQueryString(input: string): string[] {
-  return input
-    .split(/[\s,]+/g)
-    .map((s) => s.trim().toLowerCase())
-    .filter((s) => s.length > 0);
-}
+export const parseQueryString = sharedParseQueryString;
 
 /** Validation: 2–30 chars, `[a-z0-9-]`, no leading/trailing hyphen. */
 function validateName(name: string): void {
