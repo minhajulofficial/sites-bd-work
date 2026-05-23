@@ -22,7 +22,7 @@
  *      regardless of outcome, so it can't fire twice.
  */
 
-import { addCartItem } from "@/lib/hooks/useCart";
+import { apiAddCartItem } from "@/lib/cart/cartClient";
 import { searchDomains } from "@/lib/domain/client";
 
 /** Pending-claim TTL — older envelopes are dropped without an addItem. */
@@ -158,12 +158,28 @@ export async function resumePendingClaim(): Promise<ResumeOutcome> {
       if (!row || !row.available || row.status === "unknown") {
         outcome = { kind: "unavailable", claim };
       } else {
-        const { added } = addCartItem({
+        // Re-verified — let the server's `/api/cart/items` decide if
+        // this is a fresh add or a duplicate. The dashboard layout
+        // refreshes the cart provider after we return so the badge
+        // reflects either outcome.
+        const addRes = await apiAddCartItem({
           tldId: claim.tldId,
           name: claim.name,
           fullDomain: claim.fullDomain,
         });
-        outcome = { kind: "added", claim, alreadyInCart: !added };
+        if (!addRes.ok) {
+          if (addRes.error.code === "duplicate_item") {
+            outcome = { kind: "added", claim, alreadyInCart: true };
+          } else {
+            outcome = {
+              kind: "network-error",
+              claim,
+              message: addRes.error.message,
+            };
+          }
+        } else {
+          outcome = { kind: "added", claim, alreadyInCart: false };
+        }
       }
     }
   } catch (err) {

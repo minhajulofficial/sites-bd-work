@@ -28,8 +28,8 @@ import {
   parseQueryString,
   type SearchResult,
 } from "@/lib/domain/shared";
-import { savePendingClaim } from "@/lib/cart/claimResume";
 import { useCart } from "@/lib/hooks/useCart";
+import { useCartDrawer } from "@/components/cart/CartDrawerProvider";
 
 const WhoisModal = dynamic(
   () => import("@/components/domain/WhoisModal").then((m) => m.WhoisModal),
@@ -71,6 +71,7 @@ type DomainCheckProps = {
 export function DomainCheck({ tlds, isLoggedIn = false }: DomainCheckProps) {
   const router = useRouter();
   const { addItem } = useCart();
+  const { openCartDrawer } = useCartDrawer();
   const defaultTld = useMemo(
     () => tlds.find((t) => t.isPrimary) ?? tlds[0],
     [tlds],
@@ -190,31 +191,33 @@ export function DomainCheck({ tlds, isLoggedIn = false }: DomainCheckProps) {
         }),
       );
 
-      if (isLoggedIn) {
-        setPendingClaim(row);
-        return;
-      }
-
-      savePendingClaim({
-        tldId: row.tldId,
-        name: row.name,
-        fullDomain: row.fullDomain,
-      });
-      router.push(`/login?next=${encodeURIComponent("/cart")}`);
+      // PR-14: both logged-in and guest visitors go through T&C
+      // first. The guest path now resolves locally into the
+      // sessionStorage cart, no auth bounce required.
+      setPendingClaim(row);
     },
-    [isLoggedIn, router],
+    [],
   );
 
-  const handleAcceptTerms = useCallback(() => {
+  const handleAcceptTerms = useCallback(async () => {
     if (!pendingClaim) return;
-    addItem({
-      tldId: pendingClaim.tldId,
-      name: pendingClaim.name,
-      fullDomain: pendingClaim.fullDomain,
-    });
+    const accepted = pendingClaim;
     setPendingClaim(null);
-    router.push("/cart");
-  }, [addItem, pendingClaim, router]);
+    const result = await addItem({
+      tldId: accepted.tldId,
+      name: accepted.name,
+      fullDomain: accepted.fullDomain,
+    });
+    if (result.kind === "error") {
+      setError(result.error.message);
+      return;
+    }
+    if (isLoggedIn) {
+      router.push("/cart");
+    } else {
+      openCartDrawer();
+    }
+  }, [addItem, isLoggedIn, openCartDrawer, pendingClaim, router]);
 
   const goToCheckPage = useCallback(() => {
     const trimmed = name.trim();

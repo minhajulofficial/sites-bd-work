@@ -13,8 +13,13 @@ import {
   faRocket,
 } from "@fortawesome/free-solid-svg-icons";
 
+import { useCart } from "@/lib/hooks/useCart";
+import { useCartDrawer } from "@/components/cart/CartDrawerProvider";
+
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const { count: cartCount } = useCart();
+  const { openCartDrawer } = useCartDrawer();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 100);
@@ -66,14 +71,37 @@ export function Navbar() {
               <FontAwesomeIcon icon={faEnvelope} className="mr-2" /> Contact
             </a>
           </div>
-          <Link
-            href="/login"
-            className="primary-gradient text-white px-4 py-2 rounded-full font-semibold hover-lift pulse-glow inline-flex items-center"
-            id="getStartedBtn"
-          >
-            <FontAwesomeIcon icon={faRocket} className="mr-2" />
-            Get
-          </Link>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={openCartDrawer}
+              aria-label={
+                cartCount > 0
+                  ? `Cart — ${cartCount} item${cartCount === 1 ? "" : "s"}`
+                  : "Cart"
+              }
+              aria-haspopup="dialog"
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition hover:bg-gray-100 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <FontAwesomeIcon icon={faShoppingCart} className="text-lg" />
+              {cartCount > 0 ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-0.5 -top-0.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1 py-0.5 text-[10px] font-bold leading-none text-white"
+                >
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              ) : null}
+            </button>
+            <Link
+              href="/login"
+              className="primary-gradient text-white px-4 py-2 rounded-full font-semibold hover-lift pulse-glow inline-flex items-center"
+              id="getStartedBtn"
+            >
+              <FontAwesomeIcon icon={faRocket} className="mr-2" />
+              Get
+            </Link>
+          </div>
         </div>
       </div>
     </nav>
