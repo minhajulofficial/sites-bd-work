@@ -353,6 +353,8 @@ function InlineRow({
 
   return (
     <li
+      data-testid={`result-${row.name}-${row.tldId}`}
+      data-status={kind}
       className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border px-4 py-3 ${wrapClass}`}
     >
       <div className="flex items-center min-w-0 text-left">
