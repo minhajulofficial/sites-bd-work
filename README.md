@@ -16,7 +16,10 @@ performs the final domain swap to `sites.bd` at the end of the project.
 - **Supabase** (auth + Postgres + RLS)
 - **Cloudflare API v4** (multi-zone — one zone per TLD)
 - **Nodemailer** + SMTP
-- Deployed on **Vercel** (`sites-bd-work.vercel.app`)
+- Deployed on **Vercel** — preview reachable at
+  [`https://work.sites.bd`](https://work.sites.bd) (the `*.vercel.app`
+  fallback `sites-bd-work.vercel.app` is intermittently blocked by some
+  Bangladeshi ISPs; see [Dev domain](#dev-domain) below).
 
 ## Setup
 
@@ -101,6 +104,48 @@ The script iterates every TLD in `src/config/domains.json` whose
 `enabled` flag is `true`, hits Cloudflare for the zone metadata + first
 5 DNS records, and exits non-zero on the first failure. Run it after
 adding a new TLD or rotating a token.
+
+## Dev domain
+
+The repo deploys to Vercel under the auto-generated subdomain
+`sites-bd-work.vercel.app`, but some Bangladeshi ISPs (Robi/Banglalink/some
+Grameenphone routes) periodically block specific `*.vercel.app`
+subdomains at the SNI level. To work around that **without a VPN**, the
+preview is served via a custom subdomain on our own zone:
+
+> Dev URL: **https://work.sites.bd**
+
+### One-time setup
+
+Already in place — re-do these steps only if the subdomain changes or
+the Vercel project is re-created.
+
+1. **Cloudflare → `sites.bd` zone → DNS → Records → Add record**
+   - Type: `CNAME`
+   - Name: `work`
+   - Target: `cname.vercel-dns.com`
+   - Proxy status: **DNS only** (gray cloud) — Vercel terminates TLS
+     itself, Cloudflare proxy is not needed and would interfere with
+     Vercel's automatic certificate issuance.
+   - TTL: Auto
+2. **Vercel → `sites-bd-work` project → Settings → Domains**
+   - Add `work.sites.bd`.
+   - Pick "Use existing DNS record" (the CNAME from step 1).
+   - Vercel auto-issues a Let's Encrypt cert in ~30 seconds. Once it
+     turns green you can hit `https://work.sites.bd`.
+3. **Vercel → Settings → Domains → `work.sites.bd` → Edit**
+   - Assign to the **Production** branch (so every push to `main` ends
+     up at this URL).
+   - Optionally also assign to **Preview** if you want PR preview URLs
+     proxied here too (otherwise PR previews keep their Vercel-generated
+     `*-…vercel.app` URL — easier to leave as-is).
+
+### Env vars
+
+`APP_BASE_URL` and `ADMIN_BASE_URL` in `.env.example` are already set to
+`https://work.sites.bd` (and `/admin`). When you eventually flip the
+marketing site to `sites.bd`, update `.env.local` + Vercel env settings
+to `https://sites.bd` / `https://sites.bd/admin`.
 
 ## Database setup
 
