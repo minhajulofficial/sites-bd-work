@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { SearchBar, type SearchBarSubmit } from "./SearchBar";
 import { SearchResults } from "./SearchResults";
+import { TermsAndConditionsModal } from "./TermsAndConditionsModal";
 import { WhoisModal } from "./WhoisModal";
 import { searchDomains } from "@/lib/domain/client";
 import {
@@ -13,16 +14,28 @@ import {
   type SearchResult,
 } from "@/lib/domain/shared";
 import type { TldEntry } from "@/lib/domains/registry";
+import { savePendingClaim } from "@/lib/cart/claimResume";
+import { useCart } from "@/lib/hooks/useCart";
 
 type DomainSearchPanelProps = {
   /** All enabled TLDs from the server-side registry. */
   tlds: TldEntry[];
   /**
+   * Whether the visitor is signed in. Drives the PR-13 state-aware
+   * claim button: logged-in → T&C modal → cart; guest → sessionStorage
+   * + `/login?next=/cart`. Server-side prop drilling rather than a
+   * client hook keeps this synchronous on first render.
+   */
+  isLoggedIn?: boolean;
+  /**
    * When `true`, the panel syncs `?q=` / `?tldIds=` with the URL via
    * `router.replace`. Used by `/check`; the homepage opts out.
    */
   syncUrl?: boolean;
-  /** Where to navigate when the user fires "Claim". Defaults to `/dash`. */
+  /**
+   * Where to navigate after a logged-in user accepts the T&C and the
+   * item is added to the cart. Defaults to `/cart`.
+   */
   claimRedirect?: string;
   /** Initial textarea content (e.g. coming from `?q=`). */
   initialQuery?: string;
@@ -56,8 +69,9 @@ type DomainSearchPanelProps = {
  */
 export function DomainSearchPanel({
   tlds,
+  isLoggedIn = false,
   syncUrl = false,
-  claimRedirect,
+  claimRedirect = "/cart",
   initialQuery,
   initialTldIds,
   autoRun = false,
@@ -67,6 +81,8 @@ export function DomainSearchPanel({
 }: DomainSearchPanelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { addItem } = useCart();
+  const [pendingClaim, setPendingClaim] = useState<SearchResult | null>(null);
 
   // Resolve initial state from props OR `?q=` / `?tldIds=` so the same
   // component works on the homepage (props-driven) and `/check`
@@ -232,28 +248,51 @@ export function DomainSearchPanel({
 
   const handleClaim = useCallback(
     (row: SearchResult) => {
-      // PR-13 will own the actual cart wiring. We dispatch a custom
-      // event so the cart code can subscribe globally without this
-      // file needing to know about it. We also `console.info` for
-      // visibility while the cart isn't built yet.
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("domain-claim", {
-            detail: {
-              name: row.name,
-              tldId: row.tldId,
-              fullDomain: row.fullDomain,
-            },
-          }),
-        );
-        console.info("[domain-claim]", row.fullDomain);
-        if (claimRedirect) {
-          router.push(claimRedirect);
-        }
+      if (typeof window === "undefined") return;
+
+      // The cross-component `domain-claim` signal stays in place —
+      // existing observers (analytics / telemetry hooked in PR-12)
+      // continue to receive it. PR-13 layers the state-aware logic
+      // on top.
+      window.dispatchEvent(
+        new CustomEvent("domain-claim", {
+          detail: {
+            name: row.name,
+            tldId: row.tldId,
+            fullDomain: row.fullDomain,
+          },
+        }),
+      );
+
+      if (isLoggedIn) {
+        setPendingClaim(row);
+        return;
       }
+
+      // Guest branch: stash the (tldId, name, fullDomain) triple in
+      // `sessionStorage` so the dashboard layout's `useEffect` can
+      // resume the claim after sign-in / registration, then bounce
+      // to `/login?next=/cart`.
+      savePendingClaim({
+        tldId: row.tldId,
+        name: row.name,
+        fullDomain: row.fullDomain,
+      });
+      router.push(`/login?next=${encodeURIComponent(claimRedirect)}`);
     },
-    [claimRedirect, router],
+    [claimRedirect, isLoggedIn, router],
   );
+
+  const handleAcceptTerms = useCallback(() => {
+    if (!pendingClaim) return;
+    addItem({
+      tldId: pendingClaim.tldId,
+      name: pendingClaim.name,
+      fullDomain: pendingClaim.fullDomain,
+    });
+    setPendingClaim(null);
+    router.push(claimRedirect);
+  }, [addItem, claimRedirect, pendingClaim, router]);
 
   return (
     <div className={innerClassName ?? "space-y-6"}>
@@ -302,6 +341,13 @@ export function DomainSearchPanel({
         open={whoisTarget !== null}
         result={whoisTarget}
         onClose={() => setWhoisTarget(null)}
+      />
+
+      <TermsAndConditionsModal
+        open={pendingClaim !== null}
+        fullDomain={pendingClaim?.fullDomain ?? null}
+        onAccept={handleAcceptTerms}
+        onClose={() => setPendingClaim(null)}
       />
     </div>
   );
