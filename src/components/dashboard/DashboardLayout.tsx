@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 
+import { ClaimResumeMount } from "./ClaimResumeMount";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
 import { MobileDrawer } from "./MobileDrawer";
@@ -29,6 +30,10 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
+      {/* Effect-only mount: drains the `pendingClaim` sessionStorage
+          slot left by a guest who clicked "Claim" before signing
+          in. See ClaimResumeMount + lib/cart/claimResume.ts. */}
+      <ClaimResumeMount />
       <Header onOpenMobileMenu={() => setMobileOpen(true)} />
       <MobileDrawer open={mobileOpen} onClose={() => setMobileOpen(false)} />
       <div className="flex flex-1 flex-col md:flex-row">

@@ -28,9 +28,18 @@ import {
   parseQueryString,
   type SearchResult,
 } from "@/lib/domain/shared";
+import { useClaimFlow } from "@/lib/hooks/useClaimFlow";
 
 const WhoisModal = dynamic(
   () => import("@/components/domain/WhoisModal").then((m) => m.WhoisModal),
+  { ssr: false },
+);
+
+const TermsAndConditionsModal = dynamic(
+  () =>
+    import("@/components/domain/TermsAndConditionsModal").then(
+      (m) => m.TermsAndConditionsModal,
+    ),
   { ssr: false },
 );
 
@@ -54,6 +63,7 @@ type DomainCheckProps = {
  */
 export function DomainCheck({ tlds }: DomainCheckProps) {
   const router = useRouter();
+  const claimFlow = useClaimFlow();
   const defaultTld = useMemo(
     () => tlds.find((t) => t.isPrimary) ?? tlds[0],
     [tlds],
@@ -160,18 +170,13 @@ export function DomainCheck({ tlds }: DomainCheckProps) {
 
   const handleClaim = useCallback(
     (row: SearchResult) => {
-      window.dispatchEvent(
-        new CustomEvent("domain-claim", {
-          detail: {
-            name: row.name,
-            tldId: row.tldId,
-            fullDomain: row.fullDomain,
-          },
-        }),
-      );
-      console.info("[domain-claim]", row.fullDomain);
+      claimFlow.claim({
+        name: row.name,
+        tldId: row.tldId,
+        fullDomain: row.fullDomain,
+      });
     },
-    [],
+    [claimFlow],
   );
 
   const goToCheckPage = useCallback(() => {
@@ -294,6 +299,13 @@ export function DomainCheck({ tlds }: DomainCheckProps) {
         open={whoisTarget !== null}
         result={whoisTarget}
         onClose={() => setWhoisTarget(null)}
+      />
+
+      <TermsAndConditionsModal
+        open={claimFlow.modal.open}
+        target={claimFlow.modal.target}
+        onClose={claimFlow.modal.onClose}
+        onAccept={claimFlow.modal.onAccept}
       />
     </section>
   );

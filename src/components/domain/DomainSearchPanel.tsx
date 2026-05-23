@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { SearchBar, type SearchBarSubmit } from "./SearchBar";
 import { SearchResults } from "./SearchResults";
+import { TermsAndConditionsModal } from "./TermsAndConditionsModal";
 import { WhoisModal } from "./WhoisModal";
 import { searchDomains } from "@/lib/domain/client";
+import { useClaimFlow } from "@/lib/hooks/useClaimFlow";
 import {
   normaliseNames,
   parseQueryString,
@@ -22,7 +24,8 @@ type DomainSearchPanelProps = {
    * `router.replace`. Used by `/check`; the homepage opts out.
    */
   syncUrl?: boolean;
-  /** Where to navigate when the user fires "Claim". Defaults to `/dash`. */
+  /** Where to land logged-in users after they accept the T&C modal
+   *  and the item is in the cart. Defaults to `/cart`. */
   claimRedirect?: string;
   /** Initial textarea content (e.g. coming from `?q=`). */
   initialQuery?: string;
@@ -57,7 +60,7 @@ type DomainSearchPanelProps = {
 export function DomainSearchPanel({
   tlds,
   syncUrl = false,
-  claimRedirect,
+  claimRedirect = "/cart",
   initialQuery,
   initialTldIds,
   autoRun = false,
@@ -67,6 +70,7 @@ export function DomainSearchPanel({
 }: DomainSearchPanelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const claimFlow = useClaimFlow({ postClaimRedirect: claimRedirect });
 
   // Resolve initial state from props OR `?q=` / `?tldIds=` so the same
   // component works on the homepage (props-driven) and `/check`
@@ -232,27 +236,13 @@ export function DomainSearchPanel({
 
   const handleClaim = useCallback(
     (row: SearchResult) => {
-      // PR-13 will own the actual cart wiring. We dispatch a custom
-      // event so the cart code can subscribe globally without this
-      // file needing to know about it. We also `console.info` for
-      // visibility while the cart isn't built yet.
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("domain-claim", {
-            detail: {
-              name: row.name,
-              tldId: row.tldId,
-              fullDomain: row.fullDomain,
-            },
-          }),
-        );
-        console.info("[domain-claim]", row.fullDomain);
-        if (claimRedirect) {
-          router.push(claimRedirect);
-        }
-      }
+      claimFlow.claim({
+        name: row.name,
+        tldId: row.tldId,
+        fullDomain: row.fullDomain,
+      });
     },
-    [claimRedirect, router],
+    [claimFlow],
   );
 
   return (
@@ -302,6 +292,13 @@ export function DomainSearchPanel({
         open={whoisTarget !== null}
         result={whoisTarget}
         onClose={() => setWhoisTarget(null)}
+      />
+
+      <TermsAndConditionsModal
+        open={claimFlow.modal.open}
+        target={claimFlow.modal.target}
+        onClose={claimFlow.modal.onClose}
+        onAccept={claimFlow.modal.onAccept}
       />
     </div>
   );

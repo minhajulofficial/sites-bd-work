@@ -16,7 +16,22 @@ import {
 
 import { AuthCard } from "@/components/auth/AuthCard";
 import { emailSchema } from "@/lib/auth/validation";
+import { invalidateAuthUserCache } from "@/lib/hooks/useAuthUser";
 import authContent from "@/content/contentConstants.json";
+
+/**
+ * Validate a `?next=` value before honouring it as a post-login
+ * redirect. We only accept same-origin paths that start with `/` and
+ * do NOT include a scheme, protocol-relative prefix, or backslash —
+ * this prevents an open redirect via `?next=https://evil/`.
+ */
+function safeNextRedirect(next: string | null): string | null {
+  if (!next) return null;
+  if (!next.startsWith("/")) return null;
+  if (next.startsWith("//")) return null;
+  if (next.startsWith("/\\")) return null;
+  return next;
+}
 
 const loginFormSchema = z.object({
   email: emailSchema,
@@ -38,6 +53,7 @@ export function LoginPageClient() {
   const searchParams = useSearchParams();
   const initialBanner = bannerForQuery(searchParams.get("error"));
   const [pageError, setPageError] = useState<string | null>(initialBanner);
+  const nextParam = safeNextRedirect(searchParams.get("next"));
 
   useEffect(() => {
     setPageError(bannerForQuery(searchParams.get("error")));
@@ -93,7 +109,20 @@ export function LoginPageClient() {
               return;
             }
             const data = (await res.json()) as { ok: true; redirect: string };
-            router.replace(data.redirect ?? "/dash");
+            // Drop the cached "am I signed in?" snapshot so the next
+            // mount of `useAuthUser()` sees the fresh session
+            // cookie. Without this the dashboard layout would still
+            // think we are a guest for ~15s.
+            invalidateAuthUserCache();
+            // Honour `?next=...` only when the API said the profile
+            // is fully verified (its default redirect is `/dash`).
+            // Pending-profile users still go through
+            // `/complete-profile` first.
+            const target =
+              data.redirect === "/dash" && nextParam !== null
+                ? nextParam
+                : (data.redirect ?? "/dash");
+            router.replace(target);
           } catch (e) {
             console.error("[login] sign-in request failed", e);
             setPageError("Network error. Please try again.");
