@@ -1,0 +1,8 @@
+{
+  "branding": { "name": "SITES.BD", "tagline": "" },
+  "auth": { "otpEmailSubject": "", "otpEmailBody": "" },
+  "notifications": { "success": {}, "error": {} },
+  "terms": { "domainUsagePolicy": "", "termsAndConditions": "" },
+  "support": { "whatsappTemplate": "" },
+  "domains": { "addPrompt": "", "removePrompt": "" }
+}
