@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars, faBell, faShoppingCart } from "@fortawesome/free-solid-svg-icons";
 
 import { useCart } from "@/lib/hooks/useCart";
+import { useCartDrawer } from "@/components/cart/CartDrawerProvider";
 import { useDashboardContext } from "@/lib/hooks/useDashboardContext";
 import dashboardContent from "@/content/contentConstants.json";
 
@@ -29,6 +30,7 @@ export interface HeaderProps {
 export function Header({ onOpenMobileMenu }: HeaderProps) {
   const { profile, user } = useDashboardContext();
   const { count: cartCount } = useCart();
+  const { openCartDrawer } = useCartDrawer();
   const cartBadgeLabel =
     cartCount > 0
       ? `${dashboardContent.dashboard.header.cart} — ${cartCount} item${
@@ -60,7 +62,11 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
             label={dashboardContent.dashboard.header.notifications}
             icon={faBell}
           />
-          <CartButton label={cartBadgeLabel} count={cartCount} />
+          <CartButton
+            label={cartBadgeLabel}
+            count={cartCount}
+            onClick={openCartDrawer}
+          />
           <ProfileDropdown
             profile={{
               full_name: profile.full_name,
@@ -95,11 +101,21 @@ function IconButton({
   );
 }
 
-function CartButton({ label, count }: { label: string; count: number }) {
+function CartButton({
+  label,
+  count,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  onClick: () => void;
+}) {
   return (
-    <Link
-      href="/cart"
+    <button
+      type="button"
+      onClick={onClick}
       aria-label={label}
+      aria-haspopup="dialog"
       className={clsx(
         "relative inline-flex h-10 w-10 items-center justify-center rounded-md text-white/90 transition",
         "hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/40",
@@ -114,6 +130,6 @@ function CartButton({ label, count }: { label: string; count: number }) {
           {count > 99 ? "99+" : count}
         </span>
       ) : null}
-    </Link>
+    </button>
   );
 }

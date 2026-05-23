@@ -16,6 +16,7 @@ import {
 
 import { AuthCard } from "@/components/auth/AuthCard";
 import { emailSchema } from "@/lib/auth/validation";
+import { useCart } from "@/lib/hooks/useCart";
 import authContent from "@/content/contentConstants.json";
 
 const loginFormSchema = z.object({
@@ -57,6 +58,7 @@ export function LoginPageClient() {
   const initialBanner = bannerForQuery(searchParams.get("error"));
   const [pageError, setPageError] = useState<string | null>(initialBanner);
   const nextPath = safeNextPath(searchParams.get("next"));
+  const { refresh: refreshCart } = useCart();
 
   useEffect(() => {
     setPageError(bannerForQuery(searchParams.get("error")));
@@ -118,6 +120,12 @@ export function LoginPageClient() {
             const serverRedirect = data.redirect ?? "/dash";
             const target =
               nextPath && serverRedirect === "/dash" ? nextPath : serverRedirect;
+            // Pull the cart over from sessionStorage into the DB now
+            // (PR-14 merge step). `refresh()` will POST any guest items
+            // to `/api/cart/merge-guest`, clear sessionStorage, and
+            // flip the provider into user mode so `/cart` lands with
+            // a populated, merged cart on first paint.
+            await refreshCart();
             router.replace(target);
           } catch (e) {
             console.error("[login] sign-in request failed", e);

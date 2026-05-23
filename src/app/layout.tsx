@@ -4,6 +4,9 @@ import "./globals.css";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 import { faConfig } from "@/lib/fontawesome";
 import { AOSProvider } from "@/components/providers/AOSProvider";
+import { CartDrawer } from "@/components/cart/CartDrawer";
+import { CartDrawerProvider } from "@/components/cart/CartDrawerProvider";
+import { CartProvider } from "@/lib/hooks/useCart";
 
 // Suppress Font Awesome's auto-CSS injection — `@fortawesome/fontawesome-svg-core/styles.css`
 // is imported above so the icon sizing works without FOUC.
@@ -368,7 +371,12 @@ export default function RootLayout({
         ))}
       </head>
       <body className="font-sans overflow-x-hidden bg-gray-50">
-        <AOSProvider>{children}</AOSProvider>
+        <CartProvider>
+          <CartDrawerProvider>
+            <AOSProvider>{children}</AOSProvider>
+            <CartDrawer />
+          </CartDrawerProvider>
+        </CartProvider>
         <Script
           src="https://cdn.counter.dev/script.js"
           data-id="1d4d7e40-e2f7-4bc8-91e2-56cca32e3838"

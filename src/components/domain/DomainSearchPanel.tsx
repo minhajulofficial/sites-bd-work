@@ -14,8 +14,8 @@ import {
   type SearchResult,
 } from "@/lib/domain/shared";
 import type { TldEntry } from "@/lib/domains/registry";
-import { savePendingClaim } from "@/lib/cart/claimResume";
 import { useCart } from "@/lib/hooks/useCart";
+import { useCartDrawer } from "@/components/cart/CartDrawerProvider";
 
 type DomainSearchPanelProps = {
   /** All enabled TLDs from the server-side registry. */
@@ -82,6 +82,7 @@ export function DomainSearchPanel({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addItem } = useCart();
+  const { openCartDrawer } = useCartDrawer();
   const [pendingClaim, setPendingClaim] = useState<SearchResult | null>(null);
 
   // Resolve initial state from props OR `?q=` / `?tldIds=` so the same
@@ -264,35 +265,38 @@ export function DomainSearchPanel({
         }),
       );
 
-      if (isLoggedIn) {
-        setPendingClaim(row);
-        return;
-      }
-
-      // Guest branch: stash the (tldId, name, fullDomain) triple in
-      // `sessionStorage` so the dashboard layout's `useEffect` can
-      // resume the claim after sign-in / registration, then bounce
-      // to `/login?next=/cart`.
-      savePendingClaim({
-        tldId: row.tldId,
-        name: row.name,
-        fullDomain: row.fullDomain,
-      });
-      router.push(`/login?next=${encodeURIComponent(claimRedirect)}`);
+      // Both logged-in and guest visitors now go through the T&C
+      // modal first. PR-14 introduced a real guest cart, so we can
+      // accept the claim locally instead of bouncing the guest to
+      // sign-in. `addItem` itself routes to `/api/cart/items` for
+      // signed-in users and to `sessionStorage.guestCart` otherwise.
+      setPendingClaim(row);
     },
-    [claimRedirect, isLoggedIn, router],
+    [],
   );
 
-  const handleAcceptTerms = useCallback(() => {
+  const handleAcceptTerms = useCallback(async () => {
     if (!pendingClaim) return;
-    addItem({
-      tldId: pendingClaim.tldId,
-      name: pendingClaim.name,
-      fullDomain: pendingClaim.fullDomain,
-    });
+    const accepted = pendingClaim;
     setPendingClaim(null);
-    router.push(claimRedirect);
-  }, [addItem, claimRedirect, pendingClaim, router]);
+    const result = await addItem({
+      tldId: accepted.tldId,
+      name: accepted.name,
+      fullDomain: accepted.fullDomain,
+    });
+    if (result.kind === "error") {
+      setGlobalError(result.error.message);
+      return;
+    }
+    if (isLoggedIn) {
+      // PR-13 spec: after a signed-in claim the user lands on the
+      // checkout page directly. Guests stay on the search results
+      // with the drawer open so they can keep browsing.
+      router.push(claimRedirect);
+    } else {
+      openCartDrawer();
+    }
+  }, [addItem, claimRedirect, isLoggedIn, openCartDrawer, pendingClaim, router]);
 
   return (
     <div className={innerClassName ?? "space-y-6"}>

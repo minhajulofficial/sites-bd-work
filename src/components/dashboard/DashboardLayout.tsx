@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { resumePendingClaim } from "@/lib/cart/claimResume";
+import { useCart } from "@/lib/hooks/useCart";
 
 import { Footer } from "./Footer";
 import { Header } from "./Header";
@@ -36,6 +37,7 @@ import { Sidebar } from "./Sidebar";
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
+  const { refresh: refreshCart } = useCart();
 
   useEffect(() => {
     let cancelled = false;
@@ -43,6 +45,11 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       const outcome = await resumePendingClaim();
       if (cancelled) return;
       if (outcome.kind === "added") {
+        // The claim-resume path adds via the API directly — make sure
+        // the cart provider re-hydrates so the header badge + drawer
+        // reflect the new item before we navigate to `/cart`.
+        await refreshCart();
+        if (cancelled) return;
         router.push("/cart");
       }
     })().catch((err) => {
@@ -51,7 +58,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [refreshCart, router]);
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
