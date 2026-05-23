@@ -1,14 +1,22 @@
+import "server-only";
+
 import { cookies } from "next/headers";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Server-side Supabase client. Real session refresh + middleware wiring
- * lands in PR-04. Centralising the factory now means future server
- * actions, route handlers, and RSC pages all import from a single
- * entry point. Typed against the project schema once the @supabase/ssr
- * generic signature stabilises — for now callers narrow at the call
- * site via @/types/supabase.
+ * Server-side Supabase client tied to the caller's auth cookie. Use this
+ * from React Server Components, server actions, and route handlers that
+ * should run **as the signed-in user** and respect Row Level Security.
+ *
+ * The matching auth refresh hop runs in `middleware.ts` so the user's
+ * access token is always fresh by the time it reaches a handler.
+ *
+ * Note: the public schema generic is intentionally NOT applied here —
+ * piping `Database` through `@supabase/ssr`'s `createServerClient`
+ * conflicts with `@supabase/supabase-js`'s internal `SchemaName`
+ * generic. Callers narrow at the call site via `@/types/supabase` when
+ * they need typed rows.
  */
 export function createServerSupabase(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -28,16 +36,51 @@ export function createServerSupabase(): SupabaseClient {
         try {
           cookieStore.set({ name, value, ...options });
         } catch {
-          // RSCs cannot set cookies; ignored until middleware/PR-04.
+          // React Server Components cannot set cookies. The middleware
+          // hop is responsible for refresh; ignore the write here.
         }
       },
       remove(name: string, options: CookieOptions) {
         try {
           cookieStore.set({ name, value: "", ...options });
         } catch {
-          // ignored
+          // ignored — see comment above
         }
       },
+    },
+  });
+}
+
+/**
+ * Service-role Supabase client. Bypasses Row Level Security entirely.
+ *
+ * **Server-only.** Never import this from a client component, never log
+ * the key, never return data fetched via this client through an API
+ * without re-checking auth + ownership manually.
+ *
+ * Typical callers:
+ *   - OTP issuance/verification (the `otp_codes` table is intentionally
+ *     not user-readable).
+ *   - Admin background actions (cron, system audit writes).
+ *   - One-shot bootstrap helpers that need to read `auth.users` directly.
+ *
+ * Per call the function returns a fresh client — there is no cookie or
+ * session state to share, so there is no value in caching, and the
+ * @supabase/supabase-js client is cheap to construct.
+ */
+export function createServiceSupabase(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) {
+    throw new Error(
+      "[supabase/server] NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required",
+    );
+  }
+  return createClient(url, serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
     },
   });
 }
