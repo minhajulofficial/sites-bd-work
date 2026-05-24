@@ -8,6 +8,7 @@ import {
   UnauthorizedError,
   requireProfileVerified,
 } from "@/lib/auth/session";
+import { isValidPremiumPlanId, isValidFreeOptionId } from "@/lib/hosting/plans";
 import {
   CartStoreError,
   removeItemForUser,
@@ -39,6 +40,24 @@ const patchSchema = z
       v.addons !== undefined,
     "At least one field must be supplied",
   );
+
+/**
+ * Validate that hostingPlanId exists in config when hostingType is
+ * "premium" or "free". PRD §3.3 server-side rule.
+ */
+function validateHostingPlan(
+  hostingType: string | null | undefined,
+  hostingPlanId: string | null | undefined,
+): string | null {
+  if (!hostingPlanId) return null;
+  if (hostingType === "premium" && !isValidPremiumPlanId(hostingPlanId)) {
+    return `Unknown premium hosting plan: ${hostingPlanId}`;
+  }
+  if (hostingType === "free" && !isValidFreeOptionId(hostingPlanId)) {
+    return `Unknown free hosting option: ${hostingPlanId}`;
+  }
+  return null;
+}
 
 async function authOrReject(): Promise<
   | { ok: true; userId: string }
@@ -119,6 +138,15 @@ export async function PATCH(
       );
     }
     throw e;
+  }
+
+  // Validate hosting plan against config (PRD §3.3)
+  const hostingValidationError = validateHostingPlan(
+    patch.hostingType,
+    patch.hostingPlanId,
+  );
+  if (hostingValidationError) {
+    return errJson("invalid_hosting_plan", hostingValidationError, 400);
   }
 
   try {
