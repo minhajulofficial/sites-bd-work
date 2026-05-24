@@ -14,6 +14,7 @@ import {
   type SearchResult,
 } from "@/lib/domain/shared";
 import type { TldEntry } from "@/lib/domains/registry";
+import { savePendingClaim } from "@/lib/cart/claimResume";
 import { useCart } from "@/lib/hooks/useCart";
 import { useCartDrawer } from "@/components/cart/CartDrawerProvider";
 
@@ -265,14 +266,24 @@ export function DomainSearchPanel({
         }),
       );
 
-      // Both logged-in and guest visitors now go through the T&C
-      // modal first. PR-14 introduced a real guest cart, so we can
-      // accept the claim locally instead of bouncing the guest to
-      // sign-in. `addItem` itself routes to `/api/cart/items` for
-      // signed-in users and to `sessionStorage.guestCart` otherwise.
-      setPendingClaim(row);
+      if (isLoggedIn) {
+        // Logged-in: show the T&C modal so the user can accept before
+        // the item is added to the cart.
+        setPendingClaim(row);
+      } else {
+        // Guest: persist the claim to sessionStorage and bounce to the
+        // login page. On the next mount, DashboardLayout's useEffect
+        // will call resumePendingClaim() to verify availability and
+        // add the item to the cart.
+        savePendingClaim({
+          tldId: row.tldId,
+          name: row.name,
+          fullDomain: row.fullDomain,
+        });
+        router.push("/login?next=/cart");
+      }
     },
-    [],
+    [isLoggedIn, router],
   );
 
   const handleAcceptTerms = useCallback(async () => {
